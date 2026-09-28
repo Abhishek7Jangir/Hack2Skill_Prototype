@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: cdi-backend
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.10
+      - key: DATABASE_URL
+        sync: false          # paste the Supabase SESSION POOLER URL in the Render dashboard
+      - key: ADMIN_KEY
+        generateValue: true
+      - key: AI_PROCESS_URL
+        sync: false          # leave empty until Person 1's n8n URL exists (mock is used)
+      - key: AI_NARRATE_URL
+        sync: false
