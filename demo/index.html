@@ -1,0 +1,742 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CDI Test Console</title>
+<style>
+:root {
+  --bg: #f5f6f8; --panel: #ffffff; --text: #1d2330; --muted: #667085; --line: #e3e6eb;
+  --accent: #2459d6; --accent-soft: #e8eefc; --ok: #16794a; --ok-soft: #e3f4ea;
+  --warn: #9a6200; --warn-soft: #fdf1dc; --bad: #b42318; --bad-soft: #fde8e6;
+  --mock: #6d3fc0; --mock-soft: #efe8fb; --code: #f1f3f6;
+  --shadow: 0 1px 2px rgba(16,24,40,.06), 0 1px 3px rgba(16,24,40,.08);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #111418; --panel: #1a1e24; --text: #e6e9ee; --muted: #98a2b3; --line: #2c323b;
+    --accent: #7aa2ff; --accent-soft: #1e2a45; --ok: #4ccb8a; --ok-soft: #173326;
+    --warn: #f0b24a; --warn-soft: #3a2c12; --bad: #ff7b6e; --bad-soft: #3d1c19;
+    --mock: #b999ff; --mock-soft: #2c2242; --code: #22272e; --shadow: none;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text);
+  font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+header { background: var(--panel); border-bottom: 1px solid var(--line); padding: 12px 20px;
+  display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; position: sticky; top: 0; z-index: 5; }
+header h1 { font-size: 16px; margin: 0 12px 0 0; white-space: nowrap; }
+header label { display: flex; gap: 6px; align-items: center; color: var(--muted); font-size: 13px; }
+nav { display: flex; gap: 4px; padding: 10px 20px 0; flex-wrap: wrap; }
+nav button { border: 1px solid var(--line); border-bottom: none; background: transparent; color: var(--muted);
+  padding: 8px 16px; border-radius: 8px 8px 0 0; cursor: pointer; font-weight: 600; }
+nav button.active { background: var(--panel); color: var(--accent); }
+main { padding: 0 20px 40px; }
+section.tab { display: none; background: var(--panel); border: 1px solid var(--line); border-radius: 0 10px 10px 10px;
+  padding: 20px; box-shadow: var(--shadow); }
+section.tab.active { display: block; }
+h2 { font-size: 15px; margin: 0 0 12px; }
+h3 { font-size: 13px; margin: 18px 0 8px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.grid { display: grid; gap: 20px; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+@media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; margin-bottom: 10px; }
+.field { display: flex; flex-direction: column; gap: 4px; min-width: 120px; }
+.field > span { font-size: 12px; color: var(--muted); font-weight: 600; }
+input, select, textarea { font: inherit; color: var(--text); background: var(--panel); border: 1px solid var(--line);
+  border-radius: 7px; padding: 7px 9px; min-width: 0; }
+textarea { width: 100%; min-height: 70px; resize: vertical; }
+input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
+button.btn { font: inherit; font-weight: 600; border: 1px solid var(--accent); background: var(--accent); color: #fff;
+  padding: 7px 14px; border-radius: 7px; cursor: pointer; white-space: nowrap; }
+button.btn.secondary { background: transparent; color: var(--accent); }
+button.btn.small { padding: 4px 10px; font-size: 12px; }
+button.btn:disabled { opacity: .5; cursor: default; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg label { padding: 6px 12px; cursor: pointer; font-size: 13px; border-right: 1px solid var(--line); }
+.seg label:last-child { border-right: none; }
+.seg input { display: none; }
+.seg label:has(input:checked) { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.box { border: 1px solid var(--line); border-radius: 9px; padding: 14px; margin-bottom: 14px; }
+.muted { color: var(--muted); }
+.small { font-size: 12px; }
+.pill { display: inline-block; padding: 1px 9px; border-radius: 999px; font-size: 12px; font-weight: 600;
+  background: var(--code); color: var(--muted); white-space: nowrap; }
+.pill.ok { background: var(--ok-soft); color: var(--ok); }
+.pill.warn { background: var(--warn-soft); color: var(--warn); }
+.pill.bad { background: var(--bad-soft); color: var(--bad); }
+.pill.info { background: var(--accent-soft); color: var(--accent); }
+.pill.mock { background: var(--mock-soft); color: var(--mock); }
+.st-open { background: var(--accent-soft); color: var(--accent); }
+.st-in_progress { background: var(--warn-soft); color: var(--warn); }
+.st-resolved { background: var(--ok-soft); color: var(--ok); }
+.st-rejected { background: var(--code); color: var(--muted); }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { text-align: left; color: var(--muted); font-weight: 600; font-size: 12px; padding: 7px 8px; border-bottom: 1px solid var(--line);
+  white-space: nowrap; }
+td { padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+tr.clickable { cursor: pointer; }
+tr.clickable:hover td { background: var(--accent-soft); }
+tr.selected td { background: var(--accent-soft); }
+.table-wrap { overflow-x: auto; }
+.bar { display: inline-block; height: 8px; border-radius: 4px; background: var(--accent); vertical-align: middle; margin-right: 6px; }
+.bar-bg { display: inline-block; width: 70px; height: 8px; border-radius: 4px; background: var(--code); vertical-align: middle; margin-right: 6px; overflow: hidden; }
+.bar-bg > .bar { margin: 0; display: block; }
+pre { background: var(--code); border-radius: 7px; padding: 10px; overflow: auto; font-size: 12px; max-height: 320px; margin: 6px 0 0; }
+.result { border-left: 4px solid var(--ok); background: var(--ok-soft); padding: 12px 14px; border-radius: 8px; margin-top: 12px; }
+.result.err { border-color: var(--bad); background: var(--bad-soft); }
+.result .big { font-size: 22px; font-weight: 700; letter-spacing: .02em; }
+.kv { display: grid; grid-template-columns: 140px 1fr; gap: 4px 12px; font-size: 13px; }
+.kv div:nth-child(odd) { color: var(--muted); }
+.timeline { list-style: none; padding: 0; margin: 0; border-left: 2px solid var(--line); }
+.timeline li { padding: 0 0 12px 14px; position: relative; }
+.timeline li::before { content: ""; position: absolute; left: -6px; top: 5px; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { border: 1px solid var(--line); background: transparent; color: var(--text); border-radius: 999px; padding: 3px 10px;
+  font-size: 12px; cursor: pointer; }
+.chip.active { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); font-weight: 600; }
+.factor { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 4px 14px; align-items: center; padding: 8px 0; border-bottom: 1px dashed var(--line); }
+.factor:last-child { border-bottom: none; }
+.villages { max-height: 240px; overflow: auto; border: 1px solid var(--line); border-radius: 7px; }
+.villages label { display: flex; gap: 8px; padding: 5px 10px; border-bottom: 1px solid var(--line); cursor: pointer; font-size: 13px; }
+.villages label:hover { background: var(--accent-soft); }
+.villages label:last-child { border-bottom: none; }
+#toast { position: fixed; bottom: 18px; right: 18px; max-width: 420px; padding: 12px 16px; border-radius: 9px;
+  background: var(--text); color: var(--panel); box-shadow: 0 6px 20px rgba(0,0,0,.25); display: none; z-index: 10; font-size: 13px; }
+.log-item { border-bottom: 1px solid var(--line); }
+.log-item summary { cursor: pointer; padding: 7px 4px; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; display: flex; gap: 10px; }
+.log-item summary .url { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.empty { color: var(--muted); padding: 16px; text-align: center; border: 1px dashed var(--line); border-radius: 8px; }
+.hide { display: none !important; }
+code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>CDI Backend · Test Console</h1>
+  <label>API <input id="apiBase" size="38" spellcheck="false"></label>
+  <button class="btn small secondary" id="btnHealth">Check</button>
+  <span id="healthPill" class="pill">not checked</span>
+  <span id="aiPill" class="pill hide"></span>
+  <label style="margin-left:auto">Admin key <input id="adminKey" type="password" size="16" placeholder="X-Admin-Key"></label>
+  <label>Official ID <input id="officialId" size="12" value="official_001"></label>
+</header>
+
+<nav>
+  <button data-tab="submit" class="active">1 · Submit complaint</button>
+  <button data-tab="track">2 · Track complaint</button>
+  <button data-tab="hotspots">3 · Hotspots &amp; evidence</button>
+  <button data-tab="admin">4 · Admin</button>
+  <button data-tab="log">Request log <span id="logCount" class="pill">0</span></button>
+</nav>
+
+<main>
+<!-- ============================ SUBMIT ============================ -->
+<section class="tab active" id="tab-submit">
+  <div class="grid">
+    <div>
+      <h2>Complaint</h2>
+      <div class="row">
+        <div class="field"><span>Category</span><select id="cCategory"></select></div>
+        <div class="field"><span>Input type</span>
+          <div class="seg"><label><input type="radio" name="cInput" value="text" checked>Text</label><label><input type="radio" name="cInput" value="voice">Voice</label></div>
+        </div>
+        <div class="field"><span>Language</span><select id="cLang"><option value="hi">hi</option><option value="en">en</option><option value="">(none)</option></select></div>
+        <div class="field"><span>Channel</span><select id="cChannel"><option>web</option><option>voice</option><option>messaging</option></select></div>
+      </div>
+      <div class="field" style="margin-bottom:10px"><span>Text <span class="muted" id="textHint">(required for text)</span></span>
+        <textarea id="cText" placeholder="e.g. हमारे गांव में तीन महीने से पानी नहीं आया"></textarea></div>
+      <div class="field hide" id="audioField" style="margin-bottom:10px"><span>Audio file (sent as base64, not stored)</span>
+        <input type="file" id="cAudio" accept="audio/*"><span class="muted small" id="audioInfo"></span></div>
+
+      <h3>Severity / urgency</h3>
+      <div class="row">
+        <div class="seg">
+          <label><input type="radio" name="cFlow" value="A" checked>Flow A · backend calls AI</label>
+          <label><input type="radio" name="cFlow" value="B">Flow B · already processed</label>
+        </div>
+      </div>
+      <div class="row hide" id="flowBFields">
+        <div class="field"><span>Severity</span><select id="cSeverity"><option>1</option><option>2</option><option selected>3</option><option>4</option><option>5</option></select></div>
+        <div class="field"><span>Urgency</span><select id="cUrgency"><option>low</option><option selected>medium</option><option>high</option></select></div>
+      </div>
+    </div>
+
+    <div>
+      <h2>Location</h2>
+      <div class="row">
+        <div class="seg">
+          <label><input type="radio" name="lMethod" value="pincode" checked>Pincode</label>
+          <label><input type="radio" name="lMethod" value="manual">Manual</label>
+          <label><input type="radio" name="lMethod" value="gps">GPS (v2)</label>
+        </div>
+      </div>
+
+      <div id="locPincode">
+        <div class="row">
+          <div class="field"><span>Pincode</span><input id="pPin" maxlength="6" size="8" placeholder="334305"></div>
+          <button class="btn secondary" id="btnPin">Look up</button>
+          <div class="chips small"><span class="muted">Try:</span>
+            <button class="chip" data-pin="334305">334305</button><button class="chip" data-pin="301001">301001 (2 districts)</button>
+            <button class="chip" data-pin="342007">342007 (none listed)</button><button class="chip" data-pin="322215">322215</button></div>
+        </div>
+        <div id="pinResult"></div>
+      </div>
+
+      <div id="locManual" class="hide">
+        <div class="row">
+          <div class="field"><span>State</span><select id="mState"></select></div>
+          <div class="field"><span>District</span><select id="mDistrict"><option value="">—</option></select></div>
+          <div class="field"><span>Block</span><select id="mBlock"><option value="">—</option></select></div>
+          <div class="field" style="flex:1"><span>Village</span><select id="mVillage"><option value="">—</option></select></div>
+        </div>
+        <div class="row">
+          <div class="field" style="flex:1"><span>…or search villages in the selected district</span><input id="mSearch" placeholder="type 2+ letters, e.g. aadi"></div>
+        </div>
+        <div id="mSearchResults"></div>
+      </div>
+
+      <div id="locGps" class="hide">
+        <div class="row">
+          <div class="field"><span>Lat</span><input id="gLat" value="26.91" size="8"></div>
+          <div class="field"><span>Lng</span><input id="gLng" value="75.79" size="8"></div>
+        </div>
+        <p class="muted small">GPS isn't supported in v1 — the backend should answer 422 <code>gps_not_supported</code>.</p>
+      </div>
+
+      <div class="box" style="margin-top:14px"><div class="muted small">Selected location</div><div id="locSummary"><em class="muted">none yet</em></div></div>
+      <button class="btn" id="btnSubmit">Submit complaint</button>
+      <div id="submitResult"></div>
+      <details style="margin-top:10px"><summary class="muted small">Last request body</summary><pre id="submitPayload">—</pre></details>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ TRACK ============================ -->
+<section class="tab" id="tab-track">
+  <div class="row">
+    <div class="field"><span>Complaint ID</span><input id="tId" placeholder="REQ-000001" size="16"></div>
+    <button class="btn" id="btnTrack">Check status</button>
+  </div>
+  <div class="chips" id="recentIds"></div>
+  <div id="trackResult" style="margin-top:16px"></div>
+</section>
+
+<!-- ============================ HOTSPOTS ============================ -->
+<section class="tab" id="tab-hotspots">
+  <div class="row">
+    <div class="field"><span>Level</span>
+      <div class="seg"><label><input type="radio" name="hLevel" value="village" checked>Village</label><label><input type="radio" name="hLevel" value="district">District</label><label><input type="radio" name="hLevel" value="state">State</label></div></div>
+    <div class="field"><span>Category</span><select id="hCategory"><option value="">both</option></select></div>
+    <div class="field"><span>District</span><select id="hDistrict"><option value="">all</option></select></div>
+    <button class="btn" id="btnHotspots">Load</button>
+    <span class="muted small" id="hMeta"></span>
+  </div>
+  <div class="grid" style="grid-template-columns: minmax(0,1.35fr) minmax(0,1fr)">
+    <div class="table-wrap" id="hTable"><div class="empty">Press Load</div></div>
+    <div id="recPanel"><div class="empty">Click a village or district row to see its evidence and recommendation</div></div>
+  </div>
+</section>
+
+<!-- ============================ ADMIN ============================ -->
+<section class="tab" id="tab-admin">
+  <div class="row">
+    <button class="btn" id="btnRecompute">Recompute hotspots now</button>
+    <button class="btn secondary" id="btnHealthJson">Show /health</button>
+    <span id="adminMsg" class="muted small"></span>
+  </div>
+  <pre id="adminOut" class="hide"></pre>
+  <h3>Complaints</h3>
+  <div class="chips" id="aStatusChips" style="margin-bottom:10px"></div>
+  <div class="row">
+    <div class="field"><span>Category</span><select id="aCategory"><option value="">all</option></select></div>
+    <div class="field"><span>District</span><select id="aDistrict"><option value="">all</option></select></div>
+    <div class="field"><span>lgd_code</span><input id="aLgd" size="10" placeholder="exact"></div>
+    <div class="field"><span>Search</span><input id="aQ" size="18" placeholder="id or text"></div>
+    <button class="btn" id="btnAdminList">Load</button>
+    <span class="muted small" id="aMeta"></span>
+  </div>
+  <div class="table-wrap" id="aTable"><div class="empty">Enter the admin key (top right), then Load</div></div>
+  <div class="row" style="margin-top:10px">
+    <button class="btn small secondary" id="aPrev">← Prev</button>
+    <button class="btn small secondary" id="aNext">Next →</button>
+  </div>
+</section>
+
+<!-- ============================ LOG ============================ -->
+<section class="tab" id="tab-log">
+  <div class="row"><button class="btn small secondary" id="btnClearLog">Clear</button>
+    <span class="muted small">Every request this page makes, newest first. Click to see request and response bodies.</span></div>
+  <div id="logList"></div>
+</section>
+</main>
+
+<div id="toast"></div>
+
+<script>
+"use strict";
+// ------------------------------------------------------------------ state & utils
+const DEFAULT_API = "https://cdi-backend-ygef.onrender.com";
+const $ = (id) => document.getElementById(id);
+const store = {
+  get(k, d) { try { const v = localStorage.getItem("cdi." + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem("cdi." + k, JSON.stringify(v)); } catch {} },
+};
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmt = (n, d = 1) => (n === null || n === undefined) ? "—" : Number(n).toLocaleString(undefined, {maximumFractionDigits: d});
+const when = (s) => s ? new Date(s).toLocaleString() : "—";
+const statusPill = (s) => `<span class="pill st-${esc(s)}">${esc(String(s).replace("_", " "))}</span>`;
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+let toastTimer;
+function toast(msg, isErr = true) {
+  const t = $("toast"); t.textContent = msg; t.style.display = "block";
+  t.style.background = isErr ? "var(--bad)" : "var(--ok)"; t.style.color = "#fff";
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.style.display = "none", 5000);
+}
+function api() { return ($("apiBase").value || DEFAULT_API).replace(/\/+$/, ""); }
+
+const LOG = [];
+async function call(method, path, body, {admin = false, quiet = false} = {}) {
+  const url = api() + path;
+  const headers = {};
+  if (body !== undefined) headers["Content-Type"] = "application/json";
+  if (admin) headers["X-Admin-Key"] = $("adminKey").value;
+  const t0 = performance.now();
+  let status = 0, data = null;
+  try {
+    const res = await fetch(url, {method, headers, body: body === undefined ? undefined : JSON.stringify(body)});
+    status = res.status;
+    const text = await res.text();
+    try { data = text ? JSON.parse(text) : null; } catch { data = text; }
+  } catch (e) {
+    data = {detail: "Network error: " + e.message + " (backend asleep? wrong URL?)", code: "network"};
+  }
+  const ms = Math.round(performance.now() - t0);
+  LOG.unshift({method, url, status, ms, body, data, at: new Date()});
+  if (LOG.length > 100) LOG.pop();
+  renderLog();
+  const ok = status >= 200 && status < 300;
+  if (!ok && !quiet) toast(`${method} ${path} → ${status || "failed"}: ${data?.detail ?? ""}${data?.code ? " [" + data.code + "]" : ""}`);
+  return {ok, status, data};
+}
+
+// ------------------------------------------------------------------ tabs
+document.querySelectorAll("nav button").forEach((b) => b.addEventListener("click", () => showTab(b.dataset.tab)));
+function showTab(name) {
+  document.querySelectorAll("nav button").forEach((x) => x.classList.toggle("active", x.dataset.tab === name));
+  document.querySelectorAll("section.tab").forEach((s) => s.classList.toggle("active", s.id === "tab-" + name));
+  store.set("tab", name);
+}
+
+// ------------------------------------------------------------------ header
+$("apiBase").value = store.get("api", DEFAULT_API);
+$("adminKey").value = store.get("adminKey", "");
+$("officialId").value = store.get("officialId", "official_001");
+$("apiBase").addEventListener("change", () => { store.set("api", $("apiBase").value.trim()); boot(); });
+$("adminKey").addEventListener("change", () => store.set("adminKey", $("adminKey").value));
+$("officialId").addEventListener("change", () => store.set("officialId", $("officialId").value));
+$("btnHealth").addEventListener("click", checkHealth);
+
+let healthToken = 0;
+async function checkHealth() {
+  const token = ++healthToken;
+  const p = $("healthPill"); p.className = "pill"; p.textContent = "checking… (free tier may take ~50 s to wake)";
+  const r = await call("GET", "/health", undefined, {quiet: true});
+  if (token !== healthToken) return null;   // a newer check (e.g. API URL changed) superseded this one
+  if (!r.ok) { p.className = "pill bad"; p.textContent = "offline"; return null; }
+  const d = r.data;
+  p.className = "pill " + (d.status === "ok" ? "ok" : "warn");
+  p.textContent = d.status === "ok" ? "healthy" : "degraded: " + (d.missing || []).join(", ");
+  const ai = $("aiPill"); ai.classList.remove("hide");
+  const mock = d.ai_mode.process === "mock" || d.ai_mode.narrate === "mock";
+  ai.className = "pill " + (mock ? "mock" : "info");
+  ai.textContent = `AI: process ${d.ai_mode.process} · narrate ${d.ai_mode.narrate}`;
+  return d;
+}
+
+// ------------------------------------------------------------------ reference data
+let DISTRICTS = [];
+async function loadReference() {
+  const cats = await call("GET", "/api/v1/categories", undefined, {quiet: true});
+  const list = cats.ok ? cats.data.categories : ["water", "roads"];
+  $("cCategory").innerHTML = list.map((c) => `<option>${esc(c)}</option>`).join("");
+  for (const id of ["hCategory", "aCategory"]) $(id).innerHTML = `<option value="">${id === "hCategory" ? "both" : "all"}</option>` + list.map((c) => `<option>${esc(c)}</option>`).join("");
+  const states = await call("GET", "/api/v1/locations", undefined, {quiet: true});
+  if (states.ok) {
+    $("mState").innerHTML = `<option value="">—</option>` + states.data.items.map((s) => `<option value="${esc(s.lgd_code)}">${esc(s.name)}</option>`).join("");
+    if (states.data.items.length === 1) { $("mState").value = states.data.items[0].lgd_code; await onState(); }
+  }
+  const d = await call("GET", "/api/v1/locations?state=Rajasthan", undefined, {quiet: true});
+  if (d.ok) {
+    DISTRICTS = d.data.items;
+    const opts = DISTRICTS.map((x) => `<option value="${esc(x.lgd_code)}">${esc(x.name)}</option>`).join("");
+    $("hDistrict").innerHTML = `<option value="">all</option>` + opts;
+    $("aDistrict").innerHTML = `<option value="">all</option>` + opts;
+  }
+}
+
+// ------------------------------------------------------------------ SUBMIT: complaint inputs
+let audioB64 = null;
+document.querySelectorAll('input[name="cInput"]').forEach((r) => r.addEventListener("change", () => {
+  const voice = document.querySelector('input[name="cInput"]:checked').value === "voice";
+  $("audioField").classList.toggle("hide", !voice);
+  $("textHint").textContent = voice ? "(optional for voice Flow A; required for Flow B = the transcript)" : "(required for text)";
+}));
+document.querySelectorAll('input[name="cFlow"]').forEach((r) => r.addEventListener("change", () => {
+  $("flowBFields").classList.toggle("hide", document.querySelector('input[name="cFlow"]:checked').value !== "B");
+}));
+$("cAudio").addEventListener("change", () => {
+  const f = $("cAudio").files[0]; audioB64 = null; $("audioInfo").textContent = "";
+  if (!f) return;
+  const reader = new FileReader();
+  reader.onload = () => { audioB64 = reader.result; $("audioInfo").textContent = `${f.name} · ${(f.size / 1024).toFixed(0)} KB ready`; };
+  reader.readAsDataURL(f);
+});
+
+// ------------------------------------------------------------------ SUBMIT: location
+let LOC = null;   // {method, pincode?, lgd_code?, district_lgd_code?, label}
+function setLoc(loc) {
+  LOC = loc;
+  $("locSummary").innerHTML = loc ? `<strong>${esc(loc.label)}</strong><br><code>${esc(JSON.stringify(locationBody()))}</code>` : `<em class="muted">none yet</em>`;
+}
+function locationBody() {
+  if (!LOC) return null;
+  const b = {method: LOC.method};
+  for (const k of ["pincode", "lgd_code", "district_lgd_code", "lat", "lng"]) if (LOC[k] !== undefined && LOC[k] !== null && LOC[k] !== "") b[k] = LOC[k];
+  return b;
+}
+document.querySelectorAll('input[name="lMethod"]').forEach((r) => r.addEventListener("change", () => {
+  const m = document.querySelector('input[name="lMethod"]:checked').value;
+  $("locPincode").classList.toggle("hide", m !== "pincode");
+  $("locManual").classList.toggle("hide", m !== "manual");
+  $("locGps").classList.toggle("hide", m !== "gps");
+  setLoc(m === "gps" ? {method: "gps", lat: Number($("gLat").value), lng: Number($("gLng").value), label: "GPS (expect 422)"} : null);
+}));
+for (const id of ["gLat", "gLng"]) $(id).addEventListener("change", () => setLoc({method: "gps", lat: Number($("gLat").value), lng: Number($("gLng").value), label: "GPS (expect 422)"}));
+
+// pincode
+document.querySelectorAll("[data-pin]").forEach((c) => c.addEventListener("click", () => { $("pPin").value = c.dataset.pin; lookupPin(); }));
+$("btnPin").addEventListener("click", lookupPin);
+$("pPin").addEventListener("keydown", (e) => { if (e.key === "Enter") lookupPin(); });
+let PIN = null;
+async function lookupPin() {
+  const pin = $("pPin").value.trim();
+  setLoc(null);
+  $("pinResult").innerHTML = `<p class="muted">Looking up…</p>`;
+  const r = await call("GET", "/api/v1/locations/pincode/" + encodeURIComponent(pin));
+  if (!r.ok) { $("pinResult").innerHTML = `<div class="result err">${esc(r.data?.detail)}</div>`; PIN = null; return; }
+  PIN = r.data;
+  const d = PIN.districts.map((x) => esc(x.name)).join(" + ");
+  $("pinResult").innerHTML = `
+    <p class="small">${PIN.village_count} listed villages · ${PIN.unlisted_count} unlisted · district: <strong>${d}</strong>
+      ${PIN.requires_district_choice ? '<span class="pill warn">spans 2 districts</span>' : ""}</p>
+    <input id="pFilter" placeholder="filter villages…" style="width:100%;margin-bottom:6px" ${PIN.village_count ? "" : "disabled"}>
+    <div class="villages" id="pList">${PIN.villages.map((v) => `
+      <label data-name="${esc(v.village.toLowerCase())}"><input type="radio" name="pVillage" value="${esc(v.lgd_code)}">
+        <span>${esc(v.village)} <span class="muted small">· ${esc(v.block)} · ${esc(v.district)} · ${esc(v.lgd_code)}</span></span></label>`).join("")}
+      <label><input type="radio" name="pVillage" value="__notlisted"><strong>My village is not listed</strong></label>
+    </div>
+    <div id="pDistrictPick" class="row hide" style="margin-top:8px">
+      <div class="field"><span>Which district?</span><select id="pDistrict">${PIN.districts.map((x) => `<option value="${esc(x.lgd_code)}">${esc(x.name)}</option>`).join("")}</select></div>
+    </div>`;
+  $("pFilter").addEventListener("input", () => {
+    const q = $("pFilter").value.toLowerCase();
+    document.querySelectorAll("#pList label[data-name]").forEach((l) => l.classList.toggle("hide", !l.dataset.name.includes(q)));
+  });
+  document.querySelectorAll('input[name="pVillage"]').forEach((r) => r.addEventListener("change", onPinPick));
+  if (PIN.village_count === 0) { document.querySelector('input[value="__notlisted"]').checked = true; onPinPick(); }
+}
+function onPinPick() {
+  const v = document.querySelector('input[name="pVillage"]:checked')?.value;
+  const pick = $("pDistrictPick");
+  if (v === "__notlisted") {
+    pick.classList.toggle("hide", !PIN.requires_district_choice);
+    const upd = () => {
+      const dcode = PIN.requires_district_choice ? $("pDistrict").value : undefined;
+      const dname = PIN.districts.find((x) => x.lgd_code === (dcode || PIN.districts[0].lgd_code))?.name;
+      setLoc({method: "pincode", pincode: PIN.pincode, district_lgd_code: dcode, label: `Pincode ${PIN.pincode} · not listed → ${dname} district (low confidence)`});
+    };
+    $("pDistrict").onchange = upd; upd();
+  } else {
+    pick.classList.add("hide");
+    const vil = PIN.villages.find((x) => x.lgd_code === v);
+    setLoc({method: "pincode", pincode: PIN.pincode, lgd_code: v, label: `${vil.village}, ${vil.block} block, ${vil.district} (pincode ${PIN.pincode})`});
+  }
+}
+
+// manual cascade
+async function fillSelect(sel, path, placeholder = "—") {
+  sel.innerHTML = `<option value="">loading…</option>`;
+  const r = await call("GET", path);
+  sel.innerHTML = `<option value="">${placeholder}</option>` + (r.ok ? r.data.items.map((i) => `<option value="${esc(i.lgd_code)}">${esc(i.name)}${i.block ? " · " + esc(i.block) : ""}</option>`).join("") : "");
+  return r.ok ? r.data.items : [];
+}
+async function onState() {
+  const s = $("mState").value; $("mBlock").innerHTML = $("mVillage").innerHTML = `<option value="">—</option>`;
+  if (s) await fillSelect($("mDistrict"), "/api/v1/locations?state=" + encodeURIComponent(s)); setLoc(null);
+}
+$("mState").addEventListener("change", onState);
+$("mDistrict").addEventListener("change", async () => {
+  $("mVillage").innerHTML = `<option value="">—</option>`; setLoc(null);
+  if ($("mDistrict").value) await fillSelect($("mBlock"), "/api/v1/locations?district=" + encodeURIComponent($("mDistrict").value));
+});
+$("mBlock").addEventListener("change", async () => {
+  setLoc(null);
+  if ($("mBlock").value) await fillSelect($("mVillage"), "/api/v1/locations?block=" + encodeURIComponent($("mBlock").value), "— pick a village —");
+});
+$("mVillage").addEventListener("change", () => {
+  const o = $("mVillage").selectedOptions[0];
+  if (!$("mVillage").value) return setLoc(null);
+  setLoc({method: "manual", lgd_code: $("mVillage").value, label: `${o.textContent}, ${$("mBlock").selectedOptions[0].textContent} block, ${$("mDistrict").selectedOptions[0].textContent}`});
+});
+let searchTimer;
+$("mSearch").addEventListener("input", () => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(async () => {
+    const q = $("mSearch").value.trim(), d = $("mDistrict").value;
+    if (q.length < 2) { $("mSearchResults").innerHTML = ""; return; }
+    if (!d) { $("mSearchResults").innerHTML = `<p class="muted small">Pick a district first.</p>`; return; }
+    const r = await call("GET", `/api/v1/locations?district=${encodeURIComponent(d)}&q=${encodeURIComponent(q)}&limit=30`);
+    if (!r.ok) return;
+    $("mSearchResults").innerHTML = r.data.items.length ? `<div class="villages">${r.data.items.map((v) => `
+      <label><input type="radio" name="mPick" value="${esc(v.lgd_code)}" data-label="${esc(v.name)}, ${esc(v.block)} block, ${esc($("mDistrict").selectedOptions[0].textContent)}">
+      <span>${esc(v.name)} <span class="muted small">· ${esc(v.block)} · ${esc(v.lgd_code)}</span></span></label>`).join("")}</div>` : `<p class="muted small">No match</p>`;
+    document.querySelectorAll('input[name="mPick"]').forEach((x) => x.addEventListener("change", () => setLoc({method: "manual", lgd_code: x.value, label: x.dataset.label})));
+  }, 250);
+});
+
+// submit
+$("btnSubmit").addEventListener("click", async () => {
+  const inputType = document.querySelector('input[name="cInput"]:checked').value;
+  const flowB = document.querySelector('input[name="cFlow"]:checked').value === "B";
+  const body = {input_type: inputType, category: $("cCategory").value, channel: $("cChannel").value,
+                timestamp: new Date().toISOString(), location: locationBody()};
+  const text = $("cText").value.trim();
+  if (text) body.text = text;
+  if ($("cLang").value) body.language = $("cLang").value;
+  if (inputType === "voice" && audioB64) body.audio_file = audioB64;
+  if (flowB) { body.severity = Number($("cSeverity").value); body.urgency = $("cUrgency").value; }
+  if (!body.location) { toast("Pick a location first"); return; }
+  const shown = {...body}; if (shown.audio_file) shown.audio_file = shown.audio_file.slice(0, 40) + "… (" + shown.audio_file.length + " chars)";
+  $("submitPayload").textContent = JSON.stringify(shown, null, 2);
+  $("btnSubmit").disabled = true; $("btnSubmit").textContent = "Submitting…";
+  const r = await call("POST", "/api/v1/complaints", body);
+  $("btnSubmit").disabled = false; $("btnSubmit").textContent = "Submit complaint";
+  if (!r.ok) {
+    const errs = r.data?.errors ? "<br>" + r.data.errors.map((e) => `${esc(e.field)}: ${esc(e.message)}`).join("<br>") : "";
+    $("submitResult").innerHTML = `<div class="result err"><strong>${r.status}</strong> · <code>${esc(r.data?.code)}</code><br>${esc(r.data?.detail)}${errs}</div>`;
+    return;
+  }
+  const c = r.data; addRecent(c.id);
+  const L = c.location || {};
+  $("submitResult").innerHTML = `<div class="result">
+    <div class="muted small">Complaint received</div><div class="big">${esc(c.id)}</div>
+    <div class="kv" style="margin-top:8px">
+      <div>Severity / urgency</div><div>${c.severity} / ${esc(c.urgency)} <span class="pill ${c.severity_source === "fallback" ? "warn" : "ok"}">${esc(c.severity_source)}</span></div>
+      <div>Location</div><div>${esc(L.village || "(district level)")}${L.block ? ", " + esc(L.block) : ""}, ${esc(L.district)} <span class="pill ${c.location_resolution_status === "resolved" ? "ok" : "warn"}">${esc(c.location_resolution_status)}</span></div>
+      <div>Status</div><div>${esc(c.status)}</div>
+    </div>
+    <div class="row" style="margin-top:10px"><button class="btn small" onclick="trackId('${esc(c.id)}')">Track it →</button>
+    <span class="muted small">Hotspots refresh ~5 s after each complaint.</span></div></div>`;
+});
+
+// ------------------------------------------------------------------ TRACK
+function addRecent(id) { const ids = [id, ...store.get("recent", []).filter((x) => x !== id)].slice(0, 12); store.set("recent", ids); renderRecent(); }
+function renderRecent() {
+  const ids = store.get("recent", []);
+  $("recentIds").innerHTML = ids.length ? `<span class="muted small">Submitted from this page:</span>` + ids.map((i) => `<button class="chip" onclick="trackId('${esc(i)}')">${esc(i)}</button>`).join("") : "";
+}
+window.trackId = (id) => { showTab("track"); $("tId").value = id; track(); };
+$("btnTrack").addEventListener("click", track);
+$("tId").addEventListener("keydown", (e) => { if (e.key === "Enter") track(); });
+async function track() {
+  const id = $("tId").value.trim(); if (!id) return;
+  const r = await call("GET", "/api/v1/complaints/" + encodeURIComponent(id));
+  if (!r.ok) { $("trackResult").innerHTML = `<div class="result err">${esc(r.data?.detail)}</div>`; return; }
+  const c = r.data, L = c.location || {};
+  $("trackResult").innerHTML = `<div class="grid">
+    <div class="box">
+      <div class="row" style="justify-content:space-between"><div class="big" style="font-size:20px;font-weight:700">${esc(c.id)}</div>${statusPill(c.status)}</div>
+      <div class="kv">
+        <div>Category</div><div>${esc(c.category)}</div>
+        <div>Severity / urgency</div><div>${c.severity ?? "—"} / ${esc(c.urgency ?? "—")}</div>
+        <div>Description</div><div>${esc(c.description)}</div>
+        <div>Location</div><div>${esc(L.village || "(district level)")}${L.block ? ", " + esc(L.block) : ""}, ${esc(L.district)}, ${esc(L.state)} <code>${esc(L.lgd_code)}</code></div>
+        <div>Resolution</div><div>${esc(c.location_resolution_status)} (confidence ${c.location_confidence ?? "—"})</div>
+        <div>Language / channel</div><div>${esc(c.language ?? "—")} / ${esc(c.channel ?? "—")}</div>
+        <div>Created</div><div>${when(c.created_at)}</div>
+      </div>
+    </div>
+    <div class="box"><h2>History</h2>${c.history.length ? `<ul class="timeline">${c.history.map((h) => `<li>${statusPill(h.status)} <span class="muted small">from ${esc(h.previous_status)} · ${when(h.changed_at)}</span>${h.note ? `<div>${esc(h.note)}</div>` : ""}</li>`).join("")}</ul>` : `<p class="muted">No status changes yet — still ${esc(c.status)}.</p>`}</div>
+  </div>`;
+}
+
+// ------------------------------------------------------------------ HOTSPOTS
+$("btnHotspots").addEventListener("click", loadHotspots);
+document.querySelectorAll('input[name="hLevel"]').forEach((r) => r.addEventListener("change", loadHotspots));
+$("hCategory").addEventListener("change", loadHotspots);
+$("hDistrict").addEventListener("change", loadHotspots);
+const barCell = (v, max = 100) => v === null || v === undefined ? "—" : `<span class="bar-bg"><span class="bar" style="width:${Math.max(2, Math.min(100, v / max * 100))}%"></span></span>${fmt(v)}`;
+async function loadHotspots() {
+  const level = document.querySelector('input[name="hLevel"]:checked').value;
+  const p = new URLSearchParams({level});
+  if ($("hCategory").value) p.set("category", $("hCategory").value);
+  if ($("hDistrict").value && level !== "state") p.set("district", $("hDistrict").value);
+  $("hTable").innerHTML = `<div class="empty">Loading…</div>`;
+  const r = await call("GET", "/api/v1/hotspots?" + p);
+  if (!r.ok) { $("hTable").innerHTML = `<div class="empty">Failed</div>`; return; }
+  const H = r.data.hotspots;
+  $("hMeta").textContent = `${r.data.count} rows · sorted by priority`;
+  if (!H.length) { $("hTable").innerHTML = `<div class="empty">No active hotspots for this filter</div>`; return; }
+  const roll = level !== "village";
+  $("hTable").innerHTML = `<table><thead><tr>
+    <th>${level}</th><th>Cat</th><th class="num">Complaints</th><th>Priority</th><th class="num">Demand</th><th class="num">Infra gap</th>
+    <th class="num">Population</th><th class="num">Urgency</th><th class="num">Funding</th></tr></thead><tbody>
+    ${H.map((h, i) => `<tr class="${level !== "state" ? "clickable" : ""}" data-i="${i}">
+      <td><strong>${esc(h.name)}</strong><div class="muted small">${level === "village" ? esc(h.block) + " · " + esc(h.district) + " · " : level === "district" ? esc(h.state) + " · " : ""}<code>${esc(h.id)}</code></div></td>
+      <td>${esc(h.category)}</td>
+      <td class="num">${h.complaint_count}${roll && h.unassigned_complaint_count ? `<div class="muted small">${h.unassigned_complaint_count} unassigned</div>` : ""}</td>
+      <td>${barCell(h.priority_score)}${roll && h.max_priority_score !== null ? `<div class="muted small">max ${fmt(h.max_priority_score)}</div>` : ""}</td>
+      <td class="num">${fmt(h.demand_score)}</td><td class="num">${fmt(h.infrastructure_gap)}</td>
+      <td class="num">${fmt(h.affected_population, 0)}${h.population_imputed ? ' <span class="pill warn" title="Census value missing, block median used">est.</span>' : ""}</td>
+      <td class="num">${fmt(h.urgency_score)}</td><td class="num">${fmt(h.funding_gap_score)}</td></tr>`).join("")}
+    </tbody></table>`;
+  document.querySelectorAll("#hTable tr.clickable").forEach((tr) => tr.addEventListener("click", () => {
+    document.querySelectorAll("#hTable tr").forEach((x) => x.classList.remove("selected")); tr.classList.add("selected");
+    const h = H[Number(tr.dataset.i)]; openRecommendation(h.id, h.category, h.name);
+  }));
+}
+
+let recToken = 0;
+async function openRecommendation(lgd, category, name) {
+  const token = ++recToken;
+  const panel = $("recPanel");
+  panel.innerHTML = `<div class="box"><h2>${esc(name)} · ${esc(category)}</h2><p class="muted">Loading recommendation…</p></div>`;
+  for (let attempt = 0; attempt < 20 && token === recToken; attempt++) {
+    const r = await call("GET", `/api/v1/recommendations/${encodeURIComponent(lgd)}?category=${encodeURIComponent(category)}`, undefined, {quiet: true});
+    if (token !== recToken) return;
+    if (r.status === 404 || r.status === 503 || !r.ok && r.status !== 202) {
+      panel.innerHTML = `<div class="box"><h2>${esc(name)} · ${esc(category)}</h2><div class="result err"><strong>${r.status}</strong> <code>${esc(r.data?.code)}</code><br>${esc(r.data?.detail)}</div></div>`;
+      return;
+    }
+    renderRecommendation(r.status, r.data, name);
+    if (r.status === 200 && r.data.status === "ready") return;
+    await sleep(r.data?.retry_after_seconds ? r.data.retry_after_seconds * 1000 : 3000);
+  }
+}
+function renderRecommendation(code, d, name) {
+  const stateMsg = {ready: ["ok", "ready"], stale: ["warn", "stale · refreshing in background"], computing: ["info", "computing · AI text pending"]}[d.status] || ["", d.status];
+  const f = d.evidence || [];
+  const bars = f.map((e) => {
+    const max = e.factor === "affected_population" ? Math.max(...f.filter((x) => x.factor === "affected_population").map((x) => x.value || 0), 1) : 100;
+    const flags = [e.imputed ? '<span class="pill warn">estimated</span>' : "", e.is_synthetic ? '<span class="pill warn">synthetic</span>' : "",
+                   e.active_complaints !== undefined ? `<span class="pill">${e.active_complaints} active</span>` : ""].join(" ");
+    return `<div class="factor"><div><strong>${esc(e.factor.replace(/_/g, " "))}</strong><div class="muted small">${esc(e.description || "")}</div></div>
+      <div>${e.factor === "affected_population" ? `<strong>${fmt(e.value, 0)}</strong> people` : barCell(e.value, max) + ' <span class="muted small">/ 100</span>'} ${flags}</div></div>`;
+  }).join("");
+  $("recPanel").innerHTML = `<div class="box">
+    <div class="row" style="justify-content:space-between;align-items:center">
+      <h2 style="margin:0">${esc(d.name || name)} · ${esc(d.category)}</h2>
+      <span><span class="pill ${stateMsg[0]}">${esc(stateMsg[1])}</span> ${d.is_mock ? '<span class="pill mock">MOCK AI</span>' : ""} <span class="pill">HTTP ${code}</span></span></div>
+    <div class="muted small" style="margin:4px 0 12px">${esc(d.level || "")} ${d.district ? "· " + esc(d.district) : ""} · <code>${esc(d.lgd_code)}</code>
+      ${d.generated_at ? "· generated " + when(d.generated_at) : ""}</div>
+    <div style="font-size:30px;font-weight:700">${fmt(d.priority_score)} <span class="muted" style="font-size:13px;font-weight:400">priority score</span></div>
+    ${d.active_complaint_count !== undefined ? `<div class="muted small">${d.active_complaint_count} active complaints${d.hotspot_village_count !== undefined ? ` · ${d.hotspot_village_count} hotspot villages · ${d.unassigned_complaint_count} unassigned` : ""}${d.sample_size !== undefined && d.sample_size !== null ? ` · AI read ${d.sample_size}` : ""}</div>` : ""}
+    <h3>Recommended intervention</h3>
+    <p>${d.recommended_intervention ? esc(d.recommended_intervention) : '<em class="muted">waiting for AI…</em>'}</p>
+    <h3>Complaint summary</h3>
+    <p>${d.complaint_summary ? esc(d.complaint_summary) : '<em class="muted">waiting for AI…</em>'}</p>
+    <h3>Evidence (computed by backend, not AI)</h3>${bars}
+    <div class="row" style="margin-top:12px"><button class="btn small secondary" onclick="adminFor('${esc(d.lgd_code)}')">See these complaints in Admin →</button></div>
+  </div>`;
+}
+
+// ------------------------------------------------------------------ ADMIN
+let aStatus = "", aOffset = 0; const A_LIMIT = 25;
+window.adminFor = (lgd) => {
+  showTab("admin"); $("aDistrict").value = ""; $("aQ").value = "";
+  const isDistrict = DISTRICTS.some((d) => d.lgd_code === lgd);
+  if (isDistrict) { $("aDistrict").value = lgd; $("aLgd").value = ""; } else { $("aLgd").value = lgd; }
+  aOffset = 0; loadAdmin();
+};
+$("btnAdminList").addEventListener("click", () => { aOffset = 0; loadAdmin(); });
+$("aPrev").addEventListener("click", () => { aOffset = Math.max(0, aOffset - A_LIMIT); loadAdmin(); });
+$("aNext").addEventListener("click", () => { aOffset += A_LIMIT; loadAdmin(); });
+for (const id of ["aCategory", "aDistrict"]) $(id).addEventListener("change", () => { aOffset = 0; loadAdmin(); });
+for (const id of ["aLgd", "aQ"]) $(id).addEventListener("keydown", (e) => { if (e.key === "Enter") { aOffset = 0; loadAdmin(); } });
+async function loadAdmin() {
+  if (!$("adminKey").value) { toast("Enter the admin key (top right) first"); return; }
+  const p = new URLSearchParams({limit: A_LIMIT, offset: aOffset});
+  if (aStatus) p.set("status", aStatus);
+  for (const [k, id] of [["category", "aCategory"], ["district", "aDistrict"], ["lgd_code", "aLgd"], ["q", "aQ"]]) if ($(id).value.trim()) p.set(k, $(id).value.trim());
+  $("aTable").innerHTML = `<div class="empty">Loading…</div>`;
+  const r = await call("GET", "/api/v1/admin/complaints?" + p, undefined, {admin: true});
+  if (!r.ok) { $("aTable").innerHTML = `<div class="empty">${esc(r.data?.detail)}</div>`; return; }
+  const d = r.data;
+  const all = Object.values(d.by_status).reduce((a, b) => a + b, 0);
+  $("aStatusChips").innerHTML = [["", "all", all], ...Object.entries(d.by_status).map(([k, v]) => [k, k.replace("_", " "), v])]
+    .map(([k, label, n]) => `<button class="chip ${aStatus === k ? "active" : ""}" data-s="${k}">${esc(label)} · ${n}</button>`).join("");
+  document.querySelectorAll("#aStatusChips .chip").forEach((c) => c.addEventListener("click", () => { aStatus = c.dataset.s; aOffset = 0; loadAdmin(); }));
+  $("aMeta").textContent = d.total ? `showing ${d.offset + 1}–${d.offset + d.complaints.length} of ${d.total}` : "no complaints";
+  $("aPrev").disabled = d.offset === 0; $("aNext").disabled = d.offset + d.complaints.length >= d.total;
+  if (!d.complaints.length) { $("aTable").innerHTML = `<div class="empty">No complaints match</div>`; return; }
+  $("aTable").innerHTML = `<table><thead><tr><th>ID</th><th>Status</th><th>Complaint</th><th>Location</th><th>Sev/Urg</th><th>Created</th><th>Update status</th></tr></thead><tbody>
+    ${d.complaints.map((c) => `<tr>
+      <td><a href="#" onclick="trackId('${esc(c.id)}');return false"><code>${esc(c.id)}</code></a></td>
+      <td>${statusPill(c.status)}${c.status_updated_by ? `<div class="muted small">by ${esc(c.status_updated_by)}</div>` : ""}</td>
+      <td style="max-width:280px"><span class="pill">${esc(c.category)}</span> ${esc(c.description)}</td>
+      <td>${esc(c.location_name)}<div class="muted small">${esc(c.precision)} · ${esc(c.district)}${c.location_resolution_status === "low_confidence" ? ' · <span class="pill warn">low conf.</span>' : ""}</div></td>
+      <td class="num">${c.severity ?? "—"}/${esc(c.urgency ?? "—")}${c.severity_source === "fallback" ? '<div><span class="pill warn">AI fallback</span></div>' : ""}</td>
+      <td class="small">${when(c.created_at)}</td>
+      <td><div class="row" style="margin:0;flex-wrap:nowrap">
+        <select data-id="${esc(c.id)}" class="aNew">${["open", "in_progress", "resolved", "rejected"].map((s) => `<option ${s === c.status ? "selected" : ""}>${s}</option>`).join("")}</select>
+        <input class="aNote" data-id="${esc(c.id)}" placeholder="note" size="12">
+        <button class="btn small" data-id="${esc(c.id)}">Save</button></div></td></tr>`).join("")}
+  </tbody></table>`;
+  document.querySelectorAll("#aTable button[data-id]").forEach((b) => b.addEventListener("click", async () => {
+    const id = b.dataset.id;
+    const status = document.querySelector(`select.aNew[data-id="${id}"]`).value;
+    const note = document.querySelector(`input.aNote[data-id="${id}"]`).value.trim();
+    const body = {status, updated_by: $("officialId").value || "official"}; if (note) body.note = note;
+    b.disabled = true;
+    const r = await call("PATCH", `/api/v1/complaints/${encodeURIComponent(id)}/status`, body);
+    b.disabled = false;
+    if (r.ok) { toast(`${id}: ${r.data.previous_status} → ${r.data.status}`, false); loadAdmin(); }
+  }));
+}
+$("btnRecompute").addEventListener("click", async () => {
+  if (!$("adminKey").value) { toast("Enter the admin key (top right) first"); return; }
+  $("adminMsg").textContent = "recomputing…";
+  const r = await call("POST", "/api/v1/admin/recompute", undefined, {admin: true});
+  $("adminMsg").textContent = r.ok ? `done: ${r.data.result.hotspots} hotspots in ${r.data.result.duration_ms} ms` : "failed";
+  $("adminOut").classList.remove("hide"); $("adminOut").textContent = JSON.stringify(r.data, null, 2);
+});
+$("btnHealthJson").addEventListener("click", async () => {
+  const r = await call("GET", "/health");
+  $("adminOut").classList.remove("hide"); $("adminOut").textContent = JSON.stringify(r.data, null, 2);
+});
+
+// ------------------------------------------------------------------ LOG
+function renderLog() {
+  $("logCount").textContent = LOG.length;
+  $("logList").innerHTML = LOG.length ? LOG.map((l) => {
+    const cls = l.status >= 200 && l.status < 300 ? "ok" : l.status === 0 ? "bad" : l.status < 500 ? "warn" : "bad";
+    const req = l.body === undefined ? "" : JSON.stringify(l.body, (k, v) => k === "audio_file" && typeof v === "string" ? v.slice(0, 40) + "…" : v, 2);
+    return `<details class="log-item"><summary><span class="pill ${cls}">${l.status || "ERR"}</span><strong>${l.method}</strong><span class="url">${esc(l.url.replace(api(), ""))}</span><span class="muted">${l.ms} ms</span></summary>
+      ${req ? `<div class="muted small">request</div><pre>${esc(req)}</pre>` : ""}<div class="muted small">response</div><pre>${esc(typeof l.data === "string" ? l.data : JSON.stringify(l.data, null, 2))}</pre></details>`;
+  }).join("") : `<div class="empty">No requests yet</div>`;
+}
+$("btnClearLog").addEventListener("click", () => { LOG.length = 0; renderLog(); });
+
+// ------------------------------------------------------------------ boot
+async function boot() {
+  renderRecent(); renderLog();
+  const h = await checkHealth();
+  if (h) await loadReference();
+}
+showTab(store.get("tab", "submit"));
+boot();
+</script>
+</body>
+</html>

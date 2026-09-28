@@ -30,6 +30,10 @@ python scripts/recompute_hotspots.py   # replaces build_hotspots.py; prints the 
 
 > If you run on a port other than 8000, set `PORT` too (the mock AI URL is built from it).
 
+**Test console:** open `demo/index.html` in a browser (double-click it). It talks to the Render URL by default
+(change it in the header, e.g. `http://127.0.0.1:8000`). Enter the admin key top-right for the Admin tab.
+Every request/response is visible in the *Request log* tab.
+
 ## 3. Deploy on Render
 
 1. Push this folder to a GitHub repo (`.env` is git-ignored).

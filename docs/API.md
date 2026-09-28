@@ -172,6 +172,17 @@ Timeout 10 s. Any error / invalid value → complaint saved with 3 / medium, `se
 → `{"summary", "recommended_intervention"}`. A one-element array response (n8n default) is also accepted.
 Optional header via `AI_AUTH_HEADER="Header-Name: value"`.
 
-## Admin
-`POST /api/v1/admin/recompute` with header `X-Admin-Key: $ADMIN_KEY` — recompute hotspots now.
+## Admin (header `X-Admin-Key: $ADMIN_KEY`)
+`POST /api/v1/admin/recompute` — recompute hotspots now.
+
+`GET /api/v1/admin/complaints?status=&category=&district=&lgd_code=&q=&limit=50&offset=0` — officials' complaint list, newest first.
+`district` = name or lgd_code; `lgd_code` = exact village/district; `q` searches id + description.
+```json
+{"total": 11, "by_status": {"open": 6, "in_progress": 5, "resolved": 0, "rejected": 0}, "limit": 50, "offset": 0,
+ "complaints": [{"id": "REQ-000022", "status": "open", "category": "roads", "severity": 5, "urgency": "high",
+   "severity_source": "ai", "description": "...", "lgd_code": "87", "location_name": "Alwar", "precision": "district",
+   "district": "Alwar", "district_lgd_code": "87", "location_resolution_status": "low_confidence",
+   "created_at": "...", "status_updated_at": null, "status_updated_by": null}]}
+```
+`by_status` counts ignore the `status` filter (use them for tab badges). Change a status with `PATCH /complaints/{id}/status`.
 `GET /health` — DB reachable, migration v5 applied, AI mode (mock/external), last recompute.

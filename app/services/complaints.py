@@ -3,7 +3,8 @@ import logging
 
 from .. import ai_client
 from ..config import settings
-from ..constants import ACTIVE_STATUSES, FALLBACK_SEVERITY, FALLBACK_URGENCY
+from ..constants import (ACTIVE_STATUSES, CATEGORIES, COMPLAINT_STATUSES, FALLBACK_SEVERITY,
+                         FALLBACK_URGENCY)
 from ..db import dict_cursor, fetch_all, fetch_one, get_conn
 from ..errors import not_found, unprocessable
 from ..schemas import ComplaintIn, StatusUpdateIn
@@ -122,6 +123,61 @@ def get_complaint(complaint_id: str) -> dict:
         "status_updated_at": iso(row["status_updated_at"]),
         "history": [{"status": h["new_status"], "previous_status": h["old_status"], "note": h["note"],
                      "changed_at": iso(h["changed_at"])} for h in history],
+    }
+
+
+def list_complaints(conn, status: str | None, category: str | None, district: str | None,
+                    lgd_code: str | None, q: str | None, limit: int = 50, offset: int = 0) -> dict:
+    """Admin list, newest first. `by_status` counts use every filter except `status`."""
+    if status is not None and status not in COMPLAINT_STATUSES:
+        raise unprocessable(f"status must be one of {COMPLAINT_STATUSES}", "invalid_status")
+    if category is not None and category not in CATEGORIES:
+        raise unprocessable(f"category must be one of {CATEGORIES}", "invalid_category")
+    params = {"category": category, "district": district, "lgd_code": lgd_code,
+              "q": f"%{q.strip()}%" if q and q.strip() else None, "status": status,
+              "limit": limit, "offset": offset}
+    base = """
+        FROM complaints c
+        LEFT JOIN geo_units u ON u.lgd_code = c.resolved_lgd_code
+        LEFT JOIN geo_units d ON d.level = 'district' AND d.name = u.district AND d.state = u.state
+        WHERE (%(category)s::text IS NULL OR c.category = %(category)s)
+          AND (%(district)s::text IS NULL OR lower(u.district) = lower(%(district)s) OR d.lgd_code = %(district)s)
+          AND (%(lgd_code)s::text IS NULL OR c.resolved_lgd_code = %(lgd_code)s)
+          AND (%(q)s::text IS NULL OR c.id ILIKE %(q)s OR c.description ILIKE %(q)s)
+    """
+    counts = {r["complaint_status"]: int(r["n"]) for r in fetch_all(
+        conn, f"SELECT c.complaint_status, COUNT(*) AS n {base} GROUP BY c.complaint_status", params)}
+    rows = fetch_all(conn, f"""
+        SELECT c.id, c.category, c.severity, c.urgency, c.severity_source, c.description,
+               c.complaint_status, c.location_resolution_status, c.resolved_lgd_code,
+               u.name AS unit_name, u.level AS unit_level, u.district, d.lgd_code AS district_lgd_code,
+               c.created_at, c.status_updated_at, c.status_updated_by
+        {base} AND (%(status)s::text IS NULL OR c.complaint_status = %(status)s)
+        ORDER BY c.created_at DESC, c.id DESC
+        LIMIT %(limit)s OFFSET %(offset)s""", params)
+    return {
+        "total": counts.get(status, 0) if status else sum(counts.values()),
+        "by_status": {s: counts.get(s, 0) for s in COMPLAINT_STATUSES},
+        "limit": limit,
+        "offset": offset,
+        "complaints": [{
+            "id": r["id"],
+            "status": r["complaint_status"],
+            "category": r["category"],
+            "severity": r["severity"],
+            "urgency": r["urgency"],
+            "severity_source": r["severity_source"],
+            "description": r["description"],
+            "lgd_code": r["resolved_lgd_code"],
+            "location_name": r["unit_name"],
+            "precision": r["unit_level"],
+            "district": r["district"],
+            "district_lgd_code": r["district_lgd_code"],
+            "location_resolution_status": r["location_resolution_status"],
+            "created_at": iso(r["created_at"]),
+            "status_updated_at": iso(r["status_updated_at"]),
+            "status_updated_by": r["status_updated_by"],
+        } for r in rows],
     }
 
 

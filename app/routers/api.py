@@ -83,8 +83,29 @@ def get_recommendation(lgd_code: str, category: str = Query(..., description="wa
 # ---------------------------------------------------------------- admin
 @router.post("/admin/recompute", tags=["admin"])
 def admin_recompute(x_admin_key: str | None = Header(None)):
+    _require_admin(x_admin_key)
+    return {"status": "ok", "result": recompute.run_now()}
+
+
+@router.get("/admin/complaints", tags=["admin"])
+def admin_list_complaints(
+    x_admin_key: str | None = Header(None),
+    status: str | None = Query(None, description="open | in_progress | resolved | rejected"),
+    category: str | None = Query(None, description="water | roads"),
+    district: str | None = Query(None, description="District name or lgd_code"),
+    lgd_code: str | None = Query(None, description="Exact resolved lgd_code (village or district)"),
+    q: str | None = Query(None, description="Search in complaint id / description"),
+    limit: int = Query(50, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+):
+    """Officials' complaint list (newest first) with counts per status."""
+    _require_admin(x_admin_key)
+    with get_conn() as conn:
+        return complaints.list_complaints(conn, status, category, district, lgd_code, q, limit, offset)
+
+
+def _require_admin(x_admin_key: str | None) -> None:
     if not settings.admin_key:
         raise ApiError(503, "admin endpoints are disabled: set ADMIN_KEY", "admin_disabled")
     if x_admin_key != settings.admin_key:
         raise ApiError(401, "missing or wrong X-Admin-Key header", "unauthorized")
-    return {"status": "ok", "result": recompute.run_now()}
